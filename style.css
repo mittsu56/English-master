@@ -1,0 +1,29 @@
+:root{--bg:#f3f6fb;--card:#fff;--text:#1f2937;--sub:#6b7280;--primary:#4f8cff;--ok:#22a06b;--okbg:#e3f8ee;--ng:#e5484d;--ngbg:#fdeaea;--line:#dfe5ee}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141b;--card:#1a212c;--text:#e8edf5;--sub:#9aa5b5;--okbg:#12362a;--ngbg:#3a1a1c;--line:#2b3542}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-tap-highlight-color:transparent}
+.app{max-width:520px;margin:0 auto;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+h1{font-size:1.1rem;margin:4px 0 12px;text-align:center}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{flex:1;padding:8px 0;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;font-size:.85rem;cursor:pointer}
+.tab.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}
+.progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar{height:100%;width:0;background:var(--primary);transition:width .3s}
+.stats{display:flex;justify-content:space-between;font-size:.8rem;color:var(--sub);margin:6px 2px 12px}
+.card{position:relative;background:var(--card);border-radius:18px;padding:24px 18px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.badge{display:inline-block;font-size:.72rem;padding:2px 10px;border-radius:99px;background:var(--line);color:var(--sub)}
+.question{font-size:2rem;font-weight:800;text-align:center;margin:18px 0 6px;word-break:break-word}
+.speak{display:block;margin:0 auto 14px;background:none;border:0;font-size:1.4rem;cursor:pointer}
+.choices{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.choice{width:100%;padding:14px;font-size:1.05rem;text-align:center;background:var(--card);color:var(--text);border:2px solid var(--line);border-radius:12px;cursor:pointer;font-family:inherit}
+.choice:active{transform:scale(.98)}
+.choice.correct{border-color:var(--ok);background:var(--okbg)}
+.choice.wrong{border-color:var(--ng);background:var(--ngbg);animation:shake .3s}
+.choice:disabled{cursor:default}
+.example{min-height:2.6em;margin:16px 0 0;text-align:center;color:var(--sub);font-size:.9rem}
+.done{text-align:center}
+.primary{padding:12px 32px;border:0;border-radius:99px;background:var(--primary);color:#fff;font-size:1rem;font-weight:700;cursor:pointer}
+footer{text-align:center;margin-top:16px}
+.link{background:none;border:0;color:var(--sub);font-size:.8rem;text-decoration:underline;cursor:pointer}
+[hidden]{display:none!important}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
