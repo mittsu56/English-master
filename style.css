@@ -23,6 +23,8 @@ h1{font-size:1.1rem;margin:4px 0 12px;text-align:center}
 .example{min-height:2.6em;margin:16px 0 0;text-align:center;color:var(--sub);font-size:.9rem}
 .done{text-align:center}
 .primary{padding:12px 32px;border:0;border-radius:99px;background:var(--primary);color:#fff;font-size:1rem;font-weight:700;cursor:pointer}
+.done .primary{display:block;margin:10px auto 0}
+.primary.alt{background:var(--ng)}
 footer{text-align:center;margin-top:16px}
 .link{background:none;border:0;color:var(--sub);font-size:.8rem;text-decoration:underline;cursor:pointer}
 [hidden]{display:none!important}

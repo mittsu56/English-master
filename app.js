@@ -9,6 +9,8 @@
   let deck = [];
   let locked = false;
   let missed = false; // 現在の問題で既に間違えたか
+  let queue = [];     // 復習モードの出題キュー（先頭が現在の問題）
+  let reviewTotal = 0; // 復習セッション開始時の語数
 
   function load() {
     try { return { ...defaults, ...JSON.parse(localStorage.getItem(KEY)) }; }
@@ -19,7 +21,6 @@
   }
 
   function buildDeck() {
-    if (state.mode === "review") return WORDS.filter((w) => state.wrong.includes(w.en));
     if (state.mode === "all") return WORDS;
     return WORDS.filter((w) => w.type === state.mode);
   }
@@ -33,20 +34,46 @@
     return a;
   }
 
+  // 間違えた単語だけでキューを作り直す（毎回シャッフル）
+  function startReview() {
+    queue = shuffle(WORDS.filter((w) => state.wrong.includes(w.en)));
+    reviewTotal = queue.length;
+  }
+
+  function updateTabs() {
+    document.querySelectorAll(".tab").forEach((t) => {
+      t.classList.toggle("active", t.dataset.mode === state.mode);
+      if (t.dataset.mode === "review") {
+        t.textContent = state.wrong.length ? `復習 (${state.wrong.length})` : "復習";
+      }
+    });
+  }
+
   function render() {
+    updateTabs();
+    if (state.mode === "review") return renderReview();
     deck = buildDeck();
-    document.querySelectorAll(".tab").forEach((t) =>
-      t.classList.toggle("active", t.dataset.mode === state.mode));
     const i = state.pos[state.mode] || 0;
     const hits = state.firstTry[state.mode] || 0;
     $("bar").style.width = deck.length ? (Math.min(i, deck.length) / deck.length) * 100 + "%" : "0%";
     $("pos").textContent = `${Math.min(i + 1, deck.length)} / ${deck.length}`;
     $("score").textContent = `一発正解 ${hits}`;
 
-    if (!deck.length || i >= deck.length) return showDone(i);
+    if (!deck.length || i >= deck.length) return showDone();
     $("quiz").hidden = false;
     $("done").hidden = true;
     showQuestion(deck[i]);
+  }
+
+  function renderReview() {
+    const cleared = reviewTotal - queue.length;
+    $("bar").style.width = reviewTotal ? (cleared / reviewTotal) * 100 + "%" : "0%";
+    $("pos").textContent = `残り ${queue.length} 語`;
+    $("score").textContent = `克服 ${cleared} / ${reviewTotal}`;
+    if (!queue.length) return showDone();
+    $("quiz").hidden = false;
+    $("done").hidden = true;
+    showQuestion(queue[0]);
   }
 
   function showQuestion(w) {
@@ -89,33 +116,51 @@
     btn.classList.add("correct");
     document.querySelectorAll(".choice").forEach((c) => (c.disabled = true));
     $("example").textContent = w.ex;
-    if (!missed) state.firstTry[state.mode] = (state.firstTry[state.mode] || 0) + 1;
-    // 復習モードで正解したら復習リストから外す
-    if (state.mode === "review" && !missed) {
-      state.wrong = state.wrong.filter((e) => e !== w.en);
-      // デッキが縮むので位置は進めない
+    if (state.mode === "review") {
+      // 一発正解で克服（リストから外す）。間違えた語はキューの後ろに回してもう一度出す。
+      if (!missed) {
+        state.wrong = state.wrong.filter((e) => e !== w.en);
+        queue.shift();
+      } else {
+        queue.push(queue.shift());
+      }
       save();
+      updateTabs();
       return setTimeout(render, 1100);
     }
+    if (!missed) state.firstTry[state.mode] = (state.firstTry[state.mode] || 0) + 1;
     state.pos[state.mode] = (state.pos[state.mode] || 0) + 1;
     save();
     setTimeout(render, 1100);
   }
 
-  function showDone(i) {
+  function showDone() {
     $("quiz").hidden = true;
     $("done").hidden = false;
-    if (state.mode === "review" && !deck.length) {
-      $("doneTitle").textContent = "復習する単語はありません 🎉";
-      $("doneText").textContent = "間違えた単語がここに溜まります。";
-      $("restart").hidden = true;
+    $("bar").style.width = "100%";
+    const review = state.mode === "review";
+    if (review) {
+      $("doneTitle").textContent = reviewTotal ? "復習完了！ 🎉" : "復習する単語はありません 🎉";
+      $("doneText").textContent = reviewTotal
+        ? `${reviewTotal} 語をすべて克服しました。`
+        : "問題で間違えた単語がここに溜まります。";
+      $("restart").textContent = "通常の問題に戻る";
+      $("goReview").hidden = true;
     } else {
       const hits = state.firstTry[state.mode] || 0;
       $("doneTitle").textContent = "全問クリア！ 🎉";
       $("doneText").textContent = `一発正解 ${hits} / ${deck.length}　復習リスト ${state.wrong.length} 語`;
-      $("restart").hidden = false;
+      $("restart").textContent = "もう一度";
+      $("goReview").hidden = !state.wrong.length;
+      $("goReview").textContent = `間違えた ${state.wrong.length} 語を復習する`;
     }
-    $("bar").style.width = "100%";
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    if (mode === "review") startReview();
+    save();
+    render();
   }
 
   function speak(text) {
@@ -129,9 +174,11 @@
   }
 
   document.querySelectorAll(".tab").forEach((t) =>
-    t.addEventListener("click", () => { state.mode = t.dataset.mode; save(); render(); }));
+    t.addEventListener("click", () => setMode(t.dataset.mode)));
   $("speak").addEventListener("click", () => speak($("question").textContent));
+  $("goReview").addEventListener("click", () => setMode("review"));
   $("restart").addEventListener("click", () => {
+    if (state.mode === "review") return setMode("all");
     state.pos[state.mode] = 0;
     state.firstTry[state.mode] = 0;
     save();
@@ -144,6 +191,7 @@
     render();
   });
 
+  if (state.mode === "review") startReview();
   render();
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
