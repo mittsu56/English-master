@@ -1,10 +1,12 @@
 (() => {
-  const KEY = "english-master-v1";
+  const KEY = "english-master-v2";
+  const OLD_KEY = "english-master-v1";
   const CHOICES = 4;
   const $ = (id) => document.getElementById(id);
 
-  // 保存データ: mode, pos(モード別の進行位置), correct(初回正解数), wrong(間違えた単語のen配列)
-  const defaults = { mode: "all", pos: {}, firstTry: {}, wrong: [] };
+  // 保存データ: level(レベル), mode(出題種別), pos/firstTry("レベル|種別"ごとの進行位置/初回正解数),
+  // wrong(間違えた単語のen配列)
+  const fresh = () => ({ level: "all", mode: "all", pos: {}, firstTry: {}, wrong: [] });
   let state = load();
   let deck = [];
   let locked = false;
@@ -13,16 +15,27 @@
   let reviewTotal = 0; // 復習セッション開始時の語数
 
   function load() {
-    try { return { ...defaults, ...JSON.parse(localStorage.getItem(KEY)) }; }
-    catch { return { ...defaults }; }
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) return { ...fresh(), ...JSON.parse(raw) };
+      // 旧バージョンからは復習リストだけ引き継ぐ（単語の並びが変わったため進行位置は引き継がない）
+      const old = JSON.parse(localStorage.getItem(OLD_KEY) || "null");
+      if (old && Array.isArray(old.wrong)) {
+        return { ...fresh(), wrong: old.wrong.filter((en) => WORDS.some((w) => w.en === en)) };
+      }
+    } catch {}
+    return fresh();
   }
+  // 進行位置・一発正解数を保存するキー
+  const slot = () => `${state.level}|${state.mode}`;
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
   }
 
   function buildDeck() {
-    if (state.mode === "all") return WORDS;
-    return WORDS.filter((w) => w.type === state.mode);
+    return WORDS.filter((w) =>
+      (state.level === "all" || String(w.lv) === String(state.level)) &&
+      (state.mode === "all" || w.type === state.mode));
   }
 
   function shuffle(a) {
@@ -40,7 +53,24 @@
     reviewTotal = queue.length;
   }
 
+  function buildLevels() {
+    const box = $("levels");
+    const items = [{ id: "all", label: "全て", name: "すべてのレベル" }].concat(LEVELS);
+    items.forEach((lv) => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.dataset.level = lv.id;
+      b.innerHTML = `<small>TOEIC</small>${lv.label}`;
+      b.title = `${lv.name}（${lv.id === "all" ? WORDS.length : WORDS.filter((w) => w.lv === lv.id).length}語）`;
+      b.addEventListener("click", () => setLevel(lv.id));
+      box.appendChild(b);
+    });
+  }
+
   function updateTabs() {
+    $("levels").hidden = state.mode === "review";
+    document.querySelectorAll(".chip").forEach((c) =>
+      c.classList.toggle("active", c.dataset.level === String(state.level)));
     document.querySelectorAll(".tab").forEach((t) => {
       t.classList.toggle("active", t.dataset.mode === state.mode);
       if (t.dataset.mode === "review") {
@@ -53,8 +83,8 @@
     updateTabs();
     if (state.mode === "review") return renderReview();
     deck = buildDeck();
-    const i = state.pos[state.mode] || 0;
-    const hits = state.firstTry[state.mode] || 0;
+    const i = state.pos[slot()] || 0;
+    const hits = state.firstTry[slot()] || 0;
     $("bar").style.width = deck.length ? (Math.min(i, deck.length) / deck.length) * 100 + "%" : "0%";
     $("pos").textContent = `${Math.min(i + 1, deck.length)} / ${deck.length}`;
     $("score").textContent = `一発正解 ${hits}`;
@@ -79,7 +109,8 @@
   function showQuestion(w) {
     locked = false;
     missed = false;
-    $("badge").textContent = w.type === "word" ? "英単語" : "熟語";
+    const lv = LEVELS.find((l) => l.id === w.lv);
+    $("badge").textContent = `${w.type === "word" ? "英単語" : "熟語"}・TOEIC ${lv.label}`;
     $("question").textContent = w.en;
     $("example").textContent = "";
     // 同じ種類から優先してダミー選択肢を選ぶ（重複する意味は除外）
@@ -128,8 +159,8 @@
       updateTabs();
       return setTimeout(render, 1100);
     }
-    if (!missed) state.firstTry[state.mode] = (state.firstTry[state.mode] || 0) + 1;
-    state.pos[state.mode] = (state.pos[state.mode] || 0) + 1;
+    if (!missed) state.firstTry[slot()] = (state.firstTry[slot()] || 0) + 1;
+    state.pos[slot()] = (state.pos[slot()] || 0) + 1;
     save();
     setTimeout(render, 1100);
   }
@@ -147,13 +178,19 @@
       $("restart").textContent = "通常の問題に戻る";
       $("goReview").hidden = true;
     } else {
-      const hits = state.firstTry[state.mode] || 0;
+      const hits = state.firstTry[slot()] || 0;
       $("doneTitle").textContent = "全問クリア！ 🎉";
       $("doneText").textContent = `一発正解 ${hits} / ${deck.length}　復習リスト ${state.wrong.length} 語`;
       $("restart").textContent = "もう一度";
       $("goReview").hidden = !state.wrong.length;
       $("goReview").textContent = `間違えた ${state.wrong.length} 語を復習する`;
     }
+  }
+
+  function setLevel(level) {
+    state.level = level === "all" ? "all" : Number(level);
+    save();
+    render();
   }
 
   function setMode(mode) {
@@ -179,18 +216,20 @@
   $("goReview").addEventListener("click", () => setMode("review"));
   $("restart").addEventListener("click", () => {
     if (state.mode === "review") return setMode("all");
-    state.pos[state.mode] = 0;
-    state.firstTry[state.mode] = 0;
+    state.pos[slot()] = 0;
+    state.firstTry[slot()] = 0;
     save();
     render();
   });
   $("reset").addEventListener("click", () => {
     if (!confirm("進捗と復習リストをすべてリセットしますか？")) return;
-    state = { ...defaults };
+    state = fresh();
     save();
     render();
   });
 
+  if (state.level !== "all" && !LEVELS.some((l) => l.id === state.level)) state.level = "all";
+  buildLevels();
   if (state.mode === "review") startReview();
   render();
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

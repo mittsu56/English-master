@@ -7,6 +7,12 @@ h1{font-size:1.1rem;margin:4px 0 12px;text-align:center}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
 .tab{flex:1;padding:8px 0;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;font-size:.85rem;cursor:pointer}
 .tab.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}
+.levels{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.levels::-webkit-scrollbar{display:none}
+.chip{flex:1 1 0;min-width:0;padding:5px 2px;white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;font-size:.85rem;font-weight:700;line-height:1.2;cursor:pointer;font-family:inherit}
+.chip small{display:block;font-size:.6rem;font-weight:400;color:var(--sub)}
+.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip.active small{color:#e8f0ff}
 .progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
 .bar{height:100%;width:0;background:var(--primary);transition:width .3s}
 .stats{display:flex;justify-content:space-between;font-size:.8rem;color:var(--sub);margin:6px 2px 12px}
