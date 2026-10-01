@@ -113,8 +113,9 @@
     $("badge").textContent = `${w.type === "word" ? "英単語" : "熟語"}・TOEIC ${lv.label}`;
     $("question").textContent = w.en;
     $("example").textContent = "";
-    // 同じ種類から優先してダミー選択肢を選ぶ（重複する意味は除外）
-    const pool = shuffle(WORDS.filter((x) => x.en !== w.en && x.ja !== w.ja));
+    // 同じ種類から優先してダミー選択肢を選ぶ。同じ意味の語や、類義語（どちらも正解になりうる語）は除外する。
+    const similar = new Set(SIMILAR.filter((g) => g.includes(w.en)).flat());
+    const pool = shuffle(WORDS.filter((x) => x.en !== w.en && x.ja !== w.ja && !similar.has(x.en)));
     const same = pool.filter((x) => x.type === w.type);
     const dummies = same.concat(pool.filter((x) => x.type !== w.type)).slice(0, CHOICES - 1);
     const list = $("choices");
